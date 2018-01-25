@@ -1,18 +1,29 @@
 #!/usr/bin/env python3
 
-import os
-import json
 import argparse
-
 import boto3
+import json
+import os
+import time
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--queue-url', required=True)
-parser.add_argument('--profile', default="default")
-parser.add_argument('--keep', action="store_true")
-parser.add_argument('--until-empty', action="store_true")
-parser.add_argument('--yes-i-know-what-im-doing', action="store_true")
+from pprint import pprint
 
+parser = argparse.ArgumentParser(
+    description="Utility script to consume messages from an SQS queue")
+parser.add_argument('--queue-url', required=True, 
+    help="SQS queue url.")
+parser.add_argument('--profile', default="default", 
+    help="Profile configured in ~/.aws/config file.")
+parser.add_argument('--keep', action="store_true", 
+    help="Do not delete messages from the queue.")
+parser.add_argument('--until-empty', action="store_true", 
+    help="Keep reading while there are messages on the queue.")
+parser.add_argument('--yes-i-know-what-im-doing', action="store_true", 
+    help="Override when using --until-empty and --keep")
+parser.add_argument('--daemon', action="store_true", 
+    help="Run on foreground until interrupted.")
+parser.add_argument('--verbose', action="store_true", 
+    help="Print message to standard output.")
 args = parser.parse_args()
 
 aws_session = boto3.Session(profile_name=args.profile)
@@ -38,34 +49,48 @@ def download_once(keep=False):
         print("Downloading message: {}".format(message.message_id))
         ts = int(message.attributes.get('SentTimestamp')) / 1000
 
-        filename = "{:.03f}-{}.json".format(ts, message.message_id)
-        f = open(filename, "w")
-        f.write(json.dumps({
+        msg = {
             "message_id": message.message_id,
             "body": message.body,
             "message_attributes": message.message_attributes,
             "attributes": message.attributes,
-        }))
+        }
+
+        filename = "{:.03f}-{}.json".format(ts, message.message_id)
+        f = open(filename, "w")
+        f.write(json.dumps(msg))
         f.close()
-        # try:
-        #     os.utime(filename, (ts, ts))
-        # except (KeyError, ValueError, TypeError):
-        #     pass
+
+        if args.verbose:
+            pprint(msg)
+            print()
+
         if not keep:
             message.delete()
+
         count += 1
+
     return count
 
 if __name__ == "__main__":
+    print("{}: listeing for messages...".format(args.queue_url))
     empty_responses = 0
-    while True:
-        count = download_once(args.keep)
-        if count == 0:
-            empty_responses += 1
+    exit = False
+    while not exit:
+        try:
+            count = download_once(args.keep)
+            if count == 0:
+                empty_responses += 1
 
-        if not args.until_empty: # just run once
-            break
+            if args.daemon:
+                time.sleep(1)
+                continue
 
-        if empty_responses >= 2:
-            print("Two empty long-polled responses, assuming empty.")
-            break
+            if not args.until_empty: # just run once
+                break
+
+            if empty_responses >= 2:
+                print("Two empty long-polled responses, assuming empty.")
+                break
+        except KeyboardInterrupt:
+            exit = True
