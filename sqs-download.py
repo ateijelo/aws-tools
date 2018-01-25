@@ -3,27 +3,26 @@
 import argparse
 import boto3
 import json
-import os
 import time
 
 from pprint import pprint
 
 parser = argparse.ArgumentParser(
     description="Utility script to consume messages from an SQS queue")
-parser.add_argument('--queue-url', required=True, 
-    help="SQS queue url.")
-parser.add_argument('--profile', default="default", 
-    help="Profile configured in ~/.aws/config file.")
-parser.add_argument('--keep', action="store_true", 
-    help="Do not delete messages from the queue.")
-parser.add_argument('--until-empty', action="store_true", 
-    help="Keep reading while there are messages on the queue.")
-parser.add_argument('--yes-i-know-what-im-doing', action="store_true", 
-    help="Override when using --until-empty and --keep")
-parser.add_argument('--daemon', action="store_true", 
-    help="Run on foreground until interrupted.")
-parser.add_argument('--verbose', action="store_true", 
-    help="Print message to standard output.")
+parser.add_argument('--queue-url', required=True,
+                    help="SQS queue url.")
+parser.add_argument('--profile', default="default",
+                    help="Profile configured in ~/.aws/config file.")
+parser.add_argument('--keep', action="store_true",
+                    help="Do not delete messages from the queue.")
+parser.add_argument('--until-empty', action="store_true",
+                    help="Keep reading while there are messages on the queue.")
+parser.add_argument('--yes-i-know-what-im-doing', action="store_true",
+                    help="Override when using --until-empty and --keep")
+parser.add_argument('--daemon', action="store_true",
+                    help="Run on foreground until interrupted.")
+parser.add_argument('--verbose', action="store_true",
+                    help="Print message to standard output.")
 args = parser.parse_args()
 
 aws_session = boto3.Session(profile_name=args.profile)
@@ -34,6 +33,7 @@ if args.keep and not args.yes_i_know_what_im_doing:
     # we don't want to attempt to empty the queue
     # if we're not actually deleting anything
     args.until_empty = False
+
 
 def download_once(keep=False):
     messages = queue.receive_messages(
@@ -72,6 +72,7 @@ def download_once(keep=False):
 
     return count
 
+
 if __name__ == "__main__":
     print("{}: listeing for messages...".format(args.queue_url))
     empty_responses = 0
@@ -86,7 +87,7 @@ if __name__ == "__main__":
                 time.sleep(1)
                 continue
 
-            if not args.until_empty: # just run once
+            if not args.until_empty:  # just run once
                 break
 
             if empty_responses >= 2:
