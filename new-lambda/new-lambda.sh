@@ -4,8 +4,8 @@ BINPATH=$(realpath "$0")
 BINDIR=$(dirname "$BINPATH")
 TEMPLATE="$BINDIR/new-lambda.tar.gz"
 
-LAMBDA_NAME="$1"
-DIR="$LAMBDA_NAME"
+DIR="$1"
+LAMBDA_NAME=$(basename "$DIR")
 
 mkdir -p "$DIR"
 tar -C "$DIR" -xf "$TEMPLATE"
