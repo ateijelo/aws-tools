@@ -1,23 +1,23 @@
 LAMBDA_NAME := __LAMBDA_NAME__
 SOURCES := main.py
-UID := $(shell id -u)
 
 zip: lambda.zip
 
 lambda.zip: $(SOURCES) deps.zip
-	zip deps.zip $(SOURCES)
 	cp deps.zip lambda.zip
+	zip lambda.zip $(SOURCES)
 
 deps.zip: requirements.txt
-	mkdir -p deps
 	docker run --rm -it -u root --entrypoint=sh \
-	       -v "$(PWD)"/requirements.txt:/tmp/requirements.txt \
-		   -v "$(PWD)"/deps:/tmp/deps \
+	       -v "$(PWD)":/tmp/src \
 		   lambci/lambda:python3.6 \
-		   -c "pip install -r /tmp/requirements.txt -t deps && cp -vr deps/* deps/.[^.]* /tmp/deps/ && chown -R $(UID) /tmp/deps"
-	rm -f deps.zip
-	cd deps ; zip -r ../deps.zip * .[^.]* -x'*.dist-info/*' -x'*.pyc' ; cd ..
-	rm -rf deps
+		   -c "pip install -r /tmp/src/requirements.txt -t deps && \
+		       tar -C deps -cvf /tmp/src/.deps.tar . && \
+			   chown --reference=/tmp/src/requirements.txt /tmp/src/.deps.tar"
+	mkdir -p .deps && cd .deps && \
+	    tar -xf ../.deps.tar && \
+	    zip -r ../deps.zip * .[^.]* -x'*.dist-info/*' -x'*.pyc'
+	rm -rf .deps ; rm -rf .deps.tar
 
 update: .uploaded_at
 
@@ -40,4 +40,4 @@ clean:
 	rm -rf env
 	rm -rf site-packages
 	rm -rf task
-	rm -rf deps
+	rm -rf .deps
