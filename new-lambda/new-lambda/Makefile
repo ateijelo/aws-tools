@@ -1,17 +1,19 @@
 LAMBDA_NAME := __LAMBDA_NAME__
 SOURCES := main.py
+UID := $(shell id -u)
 
 zip: lambda.zip
 
-lambda.zip: $(SOURCES) site-packages
-	zip lambda.zip $(SOURCES)
-	cd site-packages && zip -r ../lambda.zip * -x'*.dist-info/*' -x'*.pyc'
-
-site-packages: requirements.txt env/bin/python
-	./env/bin/pip install -r requirements.txt -t site-packages && touch site-packages
-
-env/bin/python:
-	python3 -m venv env && ./env/bin/pip install wheel
+lambda.zip: $(SOURCES) requirements.txt
+	mkdir -p zip
+	cp $(SOURCES) zip/
+	docker run --rm -it -u root --entrypoint=sh \
+	       -v "$(PWD)"/requirements.txt:/tmp/requirements.txt \
+		   -v "$(PWD)"/zip:/tmp/zip \
+		   lambci/lambda:python3.6 \
+		   -c "pip install -r /tmp/requirements.txt -t deps && cp -vr deps/* deps/.[^.]* /tmp/zip/ && chown -R $(UID) /tmp/zip"
+	cd zip && zip -r ../lambda.zip * .[^.]* -x'*.dist-info/*' -x'*.pyc'
+	rm -rf zip
 
 update: .uploaded_at
 
@@ -25,10 +27,6 @@ run-here: zip
 		-e AWS_DEFAULT_REGION \
 		-e AWS_ACCESS_KEY_ID \
 		-e AWS_SECRET_ACCESS_KEY \
-		-e SQS_QUEUE_URL \
-		-e CELLTRAK_URL \
-		-e CELLTRAK_USER \
-		-e CELLTRAK_AUTH \
 		lambci/lambda:python3.6 main.handler
 
 .PHONY: clean run-here
@@ -38,3 +36,4 @@ clean:
 	rm -rf env
 	rm -rf site-packages
 	rm -rf task
+	rm -rf zip
