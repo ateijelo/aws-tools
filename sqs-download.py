@@ -21,7 +21,7 @@ parser.add_argument('--yes-i-know-what-im-doing', action="store_true",
                     help="Override when using --until-empty and --keep")
 parser.add_argument('--daemon', action="store_true",
                     help="Run on foreground until interrupted.")
-parser.add_argument('--verbose', action="store_true",
+parser.add_argument('--verbose','-v', action="store_true",
                     help="Print message to standard output.")
 args = parser.parse_args()
 
